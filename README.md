@@ -86,6 +86,31 @@ book-promo-veo-generator/
 - **UI:** Streamlit
 - **画像処理:** Pillow
 
+## 📚 ドキュメント
+
+このプロジェクトはドキュメント駆動開発を採用しています。
+
+### 開発者向けドキュメント
+- **[システムアーキテクチャ](docs/architecture.md)** - システム設計・構成
+- **[開発ガイド](docs/development.md)** - セットアップ・開発フロー
+- **[Git運用フロー](docs/git-workflow.md)** - ブランチ戦略・コミット規約
+- **[API仕様書](docs/api-reference.md)** - 内部API詳細
+
+### 貢献者向けドキュメント
+- **[貢献ガイド](CONTRIBUTING.md)** - プルリクエスト・コーディング規約
+- **[変更履歴](CHANGELOG.md)** - バージョン履歴
+- **[開発原則](CLAUDE.md)** - Fail-First原則・コーディング原則
+
+## 🌳 Git戦略（Git Flow）
+
+本プロジェクトは**Git Flow**を採用しています：
+
+- **main（master）**: プロダクション用（常に動作する）
+- **develop**: 開発統合ブランチ
+- **feature/***: 機能開発ブランチ
+
+詳細は[Git運用フロー](docs/git-workflow.md)を参照してください。
+
 ## 📝 ライセンス
 
 MIT License
