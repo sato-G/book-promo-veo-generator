@@ -402,7 +402,6 @@ git push origin v1.1.0
 
 ## 参考リンク
 
-- [システムアーキテクチャ](docs/architecture.md)
 - [Git運用フロー詳細](docs/git-workflow.md)
 - [開発原則（CLAUDE.md）](CLAUDE.md)
 - [Google Veo 3.1 Documentation](https://ai.google.dev/veo)

@@ -17,8 +17,7 @@ book-promo-veo-generator/
 ├── .env.example            # 環境変数テンプレート
 ├── SPEC.md                 # 仕様書（全員が見る開発指針）
 ├── CLAUDE.md               # 開発原則（Fail-First等）
-├── docs/                   # ドキュメント
-│   ├── architecture.md     # システムアーキテクチャ
+├── docs/
 │   └── git-workflow.md     # Git運用フロー
 └── output/                 # 生成動画の出力先
 ```
