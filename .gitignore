@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+*.env
+
+# Data
+data/output/
+*.mp4
+*.mp3
+*.wav
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Google Cloud
+*.json
+!.streamlit/config.toml
