@@ -14,7 +14,7 @@ ENV/
 *.env
 
 # Data
-data/output/
+data/
 *.mp4
 *.mp3
 *.wav
