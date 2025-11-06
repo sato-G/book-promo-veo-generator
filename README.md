@@ -12,12 +12,14 @@ Google Veo 3.1を使って、書籍表紙画像から自動でプロモーショ
 
 ```
 book-promo-veo-generator/
-├── veo3_sample.py          # Veo 3.1サンプルコード（メイン）
-├── requirements.txt        # 依存関係
-├── .env.example            # 環境変数テンプレート
-├── SPEC.md                 # 仕様書（全員が見る開発指針）
-├── CLAUDE.md               # 開発原則（Fail-First等）
+├── app.py                       # Streamlit UI（メイン）
+├── generators/
+│   └── veo3_sample.py          # Veo 3.1 動画生成ロジック
+├── requirements.txt             # 依存関係
+├── .env.example                 # 環境変数テンプレート
+├── SPEC.md                      # 仕様書（全員が見る開発指針）
+├── CLAUDE.md                    # 開発原則（Fail-First等）
 ├── docs/
-│   └── git-workflow.md     # Git運用フロー
-└── output/                 # 生成動画の出力先
+│   └── git-workflow.md          # Git運用フロー
+└── output/                      # 生成動画の出力先
 ```
