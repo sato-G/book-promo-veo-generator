@@ -1,27 +1,15 @@
-# 📚 Book Promo Video Generator (Veo 3.1 Edition)
+# 📚 書籍プロモーション動画生成システム
 
-書籍プロモーション動画を自動生成するシステム
+Google Veo 3.1を使って、書籍表紙画像から自動でプロモーション動画を生成するシステム。
 
 ## 🎯 主な機能
 
-### 1. AI動画生成（Veo 3.1）
-- Google Veo 3.1を使って静止画から動画を生成
-- 人物の動き、カメラワークを自動で追加
-- ドラマチックな演出
+- **Google Veo 3.1**: 静止画から高品質な動画を生成
+- **シンプルなAPI**: 1つのPythonファイルで動作
 
-### 2. ナレーション生成
-- Google Cloud Text-to-Speech API
-- 日本語ナレーション対応
-- 男性/女性の声を選択可能
+## 🚀 クイックスタート
 
-### 3. インタラクティブエディター
-- Streamlit UIで簡単編集
-- 本の表紙・タイトルをオーバーレイ
-- リアルタイムプレビュー
-
-## 🚀 使い方
-
-### インストール
+### 1. インストール
 
 ```bash
 # 仮想環境作成
@@ -32,82 +20,52 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 認証設定
+### 2. 認証設定
 
 ```bash
-# Google Cloud認証
-gcloud auth application-default login
-
-# APIキーを.envに設定
-echo "GOOGLE_API_KEY=your_api_key_here" > .env
+# 環境変数設定
+export GOOGLE_API_KEY=your_api_key_here
 ```
 
-### UI起動
+### 3. 動画生成
 
 ```bash
-streamlit run ui/video_editor.py
+# サンプル実行
+python veo3_sample.py \
+  --image path/to/book_cover.png \
+  --prompt "本のタイトルが浮かび上がる" \
+  --duration 8
 ```
 
 ## 📁 プロジェクト構造
 
 ```
 book-promo-veo-generator/
-├── ui/                          # Streamlit UI
-│   └── video_editor.py         # メインエディター
-├── generators/                  # 動画生成スクリプト
-│   ├── veo_generator.py        # Veo 3.1動画生成
-│   ├── moviepy_effects.py      # MoviePy効果
-│   └── tts_client.py           # TTS（音声合成）
-├── data/                        # 素材データ
-│   ├── books/                  # 書籍素材
-│   └── output/                 # 生成済み動画
-├── requirements.txt             # 依存関係
-├── .env.example                 # 環境変数テンプレート
-└── README.md                    # このファイル
+├── veo3_sample.py          # Veo 3.1サンプルコード（メイン）
+├── requirements.txt        # 依存関係
+├── .env.example            # 環境変数テンプレート
+├── SPEC.md                 # 仕様書（全員が見る開発指針）
+├── CLAUDE.md               # 開発原則（Fail-First等）
+├── docs/                   # ドキュメント
+│   ├── architecture.md     # システムアーキテクチャ
+│   └── git-workflow.md     # Git運用フロー
+└── output/                 # 生成動画の出力先
 ```
-
-## 🎬 動画生成例
-
-### 「あの戦争は何だったのか」
-- Veo 3.1で兵士の行進シーンを動画化
-- 重厚な男性ナレーション
-- 「続きは本書で」字幕
-
-### 「腸と脳」の科学
-- 表紙のズームイン効果
-- 科学的で知的な女性ナレーション
-- 「答えは本書で」字幕
-
-## 🔧 技術スタック
-
-- **動画生成:** Google Veo 3.1 API
-- **動画編集:** MoviePy
-- **音声合成:** Google Cloud Text-to-Speech
-- **UI:** Streamlit
-- **画像処理:** Pillow
 
 ## 📚 ドキュメント
 
-このプロジェクトはドキュメント駆動開発を採用しています。
-
-- **[システムアーキテクチャ](docs/architecture.md)** - システム設計・構成
-- **[Git運用フロー](docs/git-workflow.md)** - ブランチ戦略・コミット規約
-- **[開発原則](CLAUDE.md)** - Fail-First原則・コーディング原則
+### 開発者向け
+- **[SPEC.md](SPEC.md)** - プロジェクト仕様書（全員が見る開発指針）
+- **[CLAUDE.md](CLAUDE.md)** - 開発原則（Fail-First原則等）
+- **[docs/architecture.md](docs/architecture.md)** - システムアーキテクチャ
+- **[docs/git-workflow.md](docs/git-workflow.md)** - Git運用フロー
 
 ## 🌳 Git戦略（Git Flow）
 
-本プロジェクトは**Git Flow**を採用しています：
+本プロジェクトは**Git Flow**を採用：
 
-- **main（master）**: プロダクション用（常に動作する）
+- **master**: プロダクション用（常に動作する）
 - **develop**: 開発統合ブランチ
 - **feature/***: 機能開発ブランチ
 
-詳細は[Git運用フロー](docs/git-workflow.md)を参照してください。
-
-## 📝 ライセンス
-
-MIT License
-
-## 🙏 謝辞
-
-Google Veo 3.1, Google Cloud TTS APIを使用しています。
+詳細は[Git運用フロー](docs/git-workflow.md)を参照。

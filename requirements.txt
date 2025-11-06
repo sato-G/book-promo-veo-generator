@@ -1,16 +1,5 @@
-# Core dependencies
-streamlit>=1.28.0
-moviepy>=1.0.3
-pillow>=10.0.0
+# Veo 3.1 動画生成（メイン機能）
+google-generativeai>=0.8.0
 
-# Google APIs
-google-genai>=1.0.0
-google-cloud-texttospeech>=2.14.0
-google-auth>=2.23.0
-
-# Image/Video processing
-numpy>=1.24.0
-opencv-python>=4.8.0
-
-# Utilities
+# 環境変数管理
 python-dotenv>=1.0.0
