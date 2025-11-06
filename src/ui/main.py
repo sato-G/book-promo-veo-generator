@@ -45,7 +45,7 @@ def main():
                     uploaded_file=uploaded_file,
                     prompt=prompt,
                     duration=duration,
-                    output_dir=Path("output"),
+                    output_dir=Path("data/output"),
                 )
 
                 st.success(f"✅ 動画生成完了: {output_path}")

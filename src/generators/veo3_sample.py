@@ -49,7 +49,7 @@ def generate_video_from_upload(
     uploaded_file,
     prompt: str,
     duration: int,
-    output_dir: Path = Path("output")
+    output_dir: Path = Path("data/output")
 ) -> Path:
     """
     アップロードされた画像から動画を生成（Streamlit用）
@@ -95,7 +95,7 @@ def generate_video_from_upload(
 def generate_video(
     image_path: Path,
     prompt: str,
-    output_dir: Path = Path("output"),
+    output_dir: Path = Path("data/output"),
     duration: int = 8
 ) -> Path:
     """
@@ -242,8 +242,8 @@ def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("output"),
-        help="出力ディレクトリ（デフォルト: output/）"
+        default=Path("data/output"),
+        help="出力ディレクトリ（デフォルト: data/output/）"
     )
 
     parser.add_argument(
