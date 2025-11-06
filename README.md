@@ -90,15 +90,8 @@ book-promo-veo-generator/
 
 このプロジェクトはドキュメント駆動開発を採用しています。
 
-### 開発者向けドキュメント
 - **[システムアーキテクチャ](docs/architecture.md)** - システム設計・構成
-- **[開発ガイド](docs/development.md)** - セットアップ・開発フロー
 - **[Git運用フロー](docs/git-workflow.md)** - ブランチ戦略・コミット規約
-- **[API仕様書](docs/api-reference.md)** - 内部API詳細
-
-### 貢献者向けドキュメント
-- **[貢献ガイド](CONTRIBUTING.md)** - プルリクエスト・コーディング規約
-- **[変更履歴](CHANGELOG.md)** - バージョン履歴
 - **[開発原則](CLAUDE.md)** - Fail-First原則・コーディング原則
 
 ## 🌳 Git戦略（Git Flow）
