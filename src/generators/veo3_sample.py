@@ -48,7 +48,6 @@ def check_api_key() -> tuple[bool, str]:
 def generate_video_from_upload(
     uploaded_file,
     prompt: str,
-    duration: int,
     output_dir: Path = Path("data/output")
 ) -> Path:
     """
@@ -57,7 +56,6 @@ def generate_video_from_upload(
     Args:
         uploaded_file: Streamlitのアップロードファイルオブジェクト
         prompt: 動画生成プロンプト
-        duration: 動画の長さ（秒）
         output_dir: 出力ディレクトリ
 
     Returns:
@@ -81,7 +79,6 @@ def generate_video_from_upload(
             image_path=temp_image_path,
             prompt=prompt,
             output_dir=output_dir,
-            duration=duration,
         )
 
         return output_path
@@ -96,44 +93,38 @@ def generate_video(
     image_path: Path,
     prompt: str,
     output_dir: Path = Path("data/output"),
-    duration: int = 8
 ) -> Path:
     """
-    Veo 3.1で動画生成
+    Veo 3.0で動画生成
 
     Args:
         image_path: 入力画像パス（PNG/JPG）
         prompt: 動画生成プロンプト
         output_dir: 出力ディレクトリ
-        duration: 動画長さ（秒）デフォルト8秒
 
     Returns:
         生成された動画ファイルのパス
 
     Raises:
-        SystemExit: 環境変数GOOGLE_API_KEYが未設定
+        SystemExit: 認証情報が未設定
         FileNotFoundError: 画像ファイルが存在しない
-        ValueError: durationが無効な値
     """
     # Fail-First: 入力検証
+    if not image_path.exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+
+    # Fail-First: API Key確認
     if not os.getenv("GOOGLE_API_KEY"):
         raise SystemExit(
             "ERROR: GOOGLE_API_KEY not set in environment.\n"
             "Set with: export GOOGLE_API_KEY=your_api_key"
         )
 
-    if not image_path.exists():
-        raise FileNotFoundError(f"Image not found: {image_path}")
-
-    if not 4 <= duration <= 8:
-        raise ValueError(f"Duration must be 4-8 seconds, got {duration}")
-
     print(f"\n{'='*60}")
-    print(f"🎥 Veo 3.1 動画生成")
+    print(f"🎥 Veo 3.0 動画生成")
     print(f"{'='*60}")
     print(f"入力画像: {image_path}")
     print(f"プロンプト: {prompt}")
-    print(f"動画長さ: {duration}秒")
     print(f"{'='*60}\n")
 
     # Google Generative AI Client初期化
@@ -144,24 +135,12 @@ def generate_video(
     image_bytes = image_path.read_bytes()
     image = types.Image(imageBytes=image_bytes, mimeType=mime_type)
 
-    # リファレンス画像として設定
-    reference = types.VideoGenerationReferenceImage(
-        image=image,
-        referenceType=types.VideoGenerationReferenceType.ASSET,
-    )
-
-    # 動画生成設定
-    config = types.GenerateVideosConfig(
-        referenceImages=[reference],
-        durationSeconds=duration,
-    )
-
     # 動画生成開始
     print("⏳ 動画生成を開始...")
     operation = client.models.generate_videos(
-        model="veo-3.1-generate-preview",
+        model="veo-3.0-generate-001",
         prompt=prompt,
-        config=config,
+        image=image,
     )
 
     # ポーリングで完了を待機
@@ -246,14 +225,6 @@ def main():
         help="出力ディレクトリ（デフォルト: data/output/）"
     )
 
-    parser.add_argument(
-        "--duration",
-        type=int,
-        default=8,
-        choices=[4, 6, 8],
-        help="動画長さ（秒）デフォルト: 8"
-    )
-
     args = parser.parse_args()
 
     # 動画生成実行
@@ -262,7 +233,6 @@ def main():
             image_path=args.image,
             prompt=args.prompt,
             output_dir=args.output,
-            duration=args.duration
         )
         print(f"✅ 成功: {output_path}")
         sys.exit(0)

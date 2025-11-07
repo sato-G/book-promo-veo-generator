@@ -33,9 +33,6 @@ def main():
     # プロンプト入力
     prompt = st.text_area("プロンプト", value="本のタイトルが浮かび上がる", height=100)
 
-    # 動画の長さ
-    duration = st.selectbox("動画の長さ（秒）", options=[4, 6, 8], index=2)
-
     # 動画生成ボタン
     if st.button("🎥 動画を生成", disabled=(uploaded_file is None or not prompt.strip())):
         try:
@@ -44,7 +41,6 @@ def main():
                 output_path = generate_video_from_upload(
                     uploaded_file=uploaded_file,
                     prompt=prompt,
-                    duration=duration,
                     output_dir=Path("data/output"),
                 )
 
