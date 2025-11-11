@@ -69,7 +69,8 @@ class ScenarioGenerator:
     def generate_narration(
         self,
         book_info: BookInfo,
-        language: str = "ja"
+        language: str = "ja",
+        target_length: int = 55
     ) -> str:
         """
         書籍プロモーション動画用のナレーションテキストを生成
@@ -77,9 +78,10 @@ class ScenarioGenerator:
         Args:
             book_info: 書籍情報
             language: 言語 (ja/en)
+            target_length: 目標文字数（デフォルト: 55文字）
 
         Returns:
-            ナレーションテキスト（50〜60文字、8秒で読める長さ）
+            ナレーションテキスト
         """
         print("\n" + "=" * 60)
         print("🤖 ナレーション生成開始")
@@ -90,8 +92,8 @@ class ScenarioGenerator:
         print("=" * 60 + "\n")
 
         # プロンプトを生成
-        system_prompt = self._create_system_prompt(language)
-        user_prompt = self._create_user_prompt(book_info, language)
+        system_prompt = self._create_system_prompt(language, target_length)
+        user_prompt = self._create_user_prompt(book_info, language, target_length)
 
         try:
             print("📤 OpenAI API呼び出し中...")
@@ -152,16 +154,19 @@ class ScenarioGenerator:
             print(f"❌ エラー: {e}")
             raise
 
-    def _create_system_prompt(self, language: str) -> str:
+    def _create_system_prompt(self, language: str, target_length: int = 55) -> str:
         """システムプロンプトを生成"""
+        min_length = max(20, target_length - 10)
+        max_length = min(100, target_length + 10)
+
         if language == "ja":
-            return """あなたは書籍プロモーション動画のプロフェッショナルなコピーライターです。
+            return f"""あなたは書籍プロモーション動画のプロフェッショナルなコピーライターです。
 
 **ミッション**: 8秒のショート動画用の「読まれるナレーションテキスト」を作成すること
 
 **絶対に守るべきルール**:
 
-1. **文字数**: 50〜60文字厳守（8秒で読める長さ）
+1. **文字数**: {min_length}〜{max_length}文字厳守（8秒で読める長さ）
 2. **最初の20文字が最重要**: 視聴者の注意を一瞬で引きつける
 3. **構成**:
    - 冒頭: 強烈なフック（問いかけ、驚き、共感）
@@ -180,22 +185,22 @@ class ScenarioGenerator:
 
 **出力形式**:
 ```json
-{
-  "narration_text": "ここにナレーションテキスト（50-60文字）"
-}
+{{
+  "narration_text": "ここにナレーションテキスト（{min_length}-{max_length}文字）"
+}}
 ```
 
 **例**:
 - 良い例: 「成功する人は何が違う？この本に答えがある。今すぐ読もう。」（30文字）
 - 悪い例: 「本書は成功するための様々なノウハウを提供する一冊となっております。」（抽象的で弱い）"""
         else:
-            return """You are a professional copywriter for book promotional videos.
+            return f"""You are a professional copywriter for book promotional videos.
 
 **Mission**: Create a "narration script" for 8-second short videos
 
 **Strict Rules**:
 
-1. **Character Count**: 50-60 characters (readable in 8 seconds)
+1. **Character Count**: {min_length}-{max_length} characters (readable in 8 seconds)
 2. **First 20 characters are critical**: Instantly grab viewer attention
 3. **Structure**:
    - Opening: Strong hook (question, surprise, empathy)
@@ -219,8 +224,11 @@ class ScenarioGenerator:
 }
 ```"""
 
-    def _create_user_prompt(self, book_info: BookInfo, language: str) -> str:
+    def _create_user_prompt(self, book_info: BookInfo, language: str, target_length: int = 55) -> str:
         """ユーザープロンプトを生成"""
+        min_length = max(20, target_length - 10)
+        max_length = min(100, target_length + 10)
+
         if language == "ja":
             return f"""以下の書籍のプロモーション動画用ナレーションテキストを作成してください。
 
@@ -231,11 +239,11 @@ class ScenarioGenerator:
 - **動画の雰囲気**: {book_info.mood}
 
 # 要求事項
-- 文字数: 50〜60文字
+- 文字数: {min_length}〜{max_length}文字
 - 最初の20文字で視聴者の心を掴む
 - 8秒で読み切れる自然なリズム
 
-必ずJSON形式で、narration_textキーに50-60文字のテキストを返してください。"""
+必ずJSON形式で、narration_textキーに{min_length}-{max_length}文字のテキストを返してください。"""
         else:
             return f"""Create a promotional video narration for the following book.
 

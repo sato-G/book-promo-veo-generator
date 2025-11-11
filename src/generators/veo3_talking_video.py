@@ -3,7 +3,8 @@
 Veo 3.x 画像 + プロンプト → 動画（シンプル版）
 
 最小要件: 入力画像とプロンプトだけで動画を生成。
-プロンプトはCLI引数、または下部の定数 PROMPT を編集して使えます。
+プロンプトはCLI引数、または定数 DEFAULT_PROMPT を編集して使えます。
+画像パスは CLI 省略時に DEFAULT_IMAGE（絶対パス）を使用します。
 """
 
 import os
@@ -26,8 +27,19 @@ except Exception as e:
     )
 
 
-# ここを編集して固定プロンプトとして使うこともできます
-PROMPT: str = "被写体の一貫性を保ちつつ、滑らかで自然なカメラワークで本の魅力を伝える短い動画を生成する。"
+# ここを編集して固定値として使えます（CLI未指定時に適用）
+DEFAULT_IMAGE: Path = Path("/Users/sato/work/book-promo-veo-generator/data/『土と生命の46億年史』 /images/藤井一至さんエリマキ写真 (1).JPG")
+DEFAULT_PROMPT: str = (
+    "ショット: 正面の頭部〜肩のクローズアップ。カメラは固定し、揺れや過度なズームは避ける。\n"
+    "被写体: 入力画像の人物。顔の造形・髪型・衣服の一貫性を保つ。自然なまばたきと微細な表情。\n"
+    "口の動き: セリフと正確に同期。日本語の母音・子音の口形を丁寧に再現し、過度な頭の揺れは避ける。\n"
+    "会話: 「記憶力の低下、不眠、うつ、発達障害、肥満、高血圧、糖尿病、感染症の重症化……\n"
+    "すべての不調は腸から始まる!」\n"
+    "SFX: 服がわずかに擦れる小さな音、口の開閉に伴うごく小さなブレス。\n"
+    "周囲の音: 静かな室内の空気感。不要な雑音は入れない。\n"
+    "長さ: およそ6秒。\n"
+    "スタイル: 実写的で自然。圧縮歪みや口元の破綻、フレームのちらつきを避ける。"
+)
 
 
 def _check_api_key() -> None:
@@ -118,17 +130,18 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Veo 画像+プロンプト → 動画 (Simple)")
-    parser.add_argument("--image", type=Path, required=True, help="入力画像のパス")
-    parser.add_argument("--prompt", type=str, help="Veoへのプロンプト（未指定なら定数PROMPTを使用）")
+    parser.add_argument("--image", type=Path, required=False, help="入力画像のパス（未指定時はDEFAULT_IMAGE）")
+    parser.add_argument("--prompt", type=str, help="Veoへのプロンプト（未指定ならDEFAULT_PROMPT）")
     parser.add_argument("--model", type=str, default="veo-3.0-generate-001")
     parser.add_argument("--output", type=Path, default=Path("data/output"))
 
     args = parser.parse_args()
 
-    p = args.prompt if args.prompt else PROMPT
+    img = args.image if args.image else DEFAULT_IMAGE
+    p = args.prompt if args.prompt else DEFAULT_PROMPT
     try:
         out = generate_video(
-            image_path=args.image,
+            image_path=img,
             prompt=p,
             output_dir=args.output,
             model=args.model,

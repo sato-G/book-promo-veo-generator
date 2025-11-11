@@ -109,7 +109,14 @@ def main():
         )
 
     with model_col2:
-        st.metric("目標文字数", "50-60文字")
+        target_length = st.number_input(
+            "目標文字数",
+            min_value=20,
+            max_value=100,
+            value=55,
+            step=5,
+            help="生成するナレーションの目標文字数"
+        )
 
     st.markdown("---")
 
@@ -138,13 +145,15 @@ def main():
             # ナレーション生成
             with st.spinner("🤖 AIがナレーションを生成中... 10〜30秒ほどかかります"):
                 generator = ScenarioGenerator(model=model)
-                narration_text = generator.generate_narration(book_info, language="ja")
+                narration_text = generator.generate_narration(book_info, language="ja", target_length=target_length)
 
             st.success("✅ ナレーション生成完了！")
 
             # 結果をsession_stateに保存
             st.session_state.narration_text = narration_text
             st.session_state.book_info = book_info
+            st.session_state.target_length = target_length
+            st.session_state.model = model
 
         except Exception as e:
             st.error(f"❌ エラー: {e}")
@@ -181,9 +190,54 @@ def main():
 
         st.markdown("---")
 
-        # 再生成ボタン
-        if st.button("🔄 別のバージョンを生成", type="secondary"):
-            st.rerun()
+        # 改善機能
+        st.subheader("✏️ ナレーションを改善")
+
+        improvement_request = st.text_area(
+            "改善したい内容を入力",
+            placeholder="例:\n- もっと短くしてください\n- 冒頭をもっとインパクトのある表現にしてください\n- 「戦争」という言葉を使わないでください\n- もっと明るい雰囲気にしてください",
+            height=100,
+            help="現在のナレーションをどのように改善したいか具体的に入力してください"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("🔄 改善して再生成", disabled=not improvement_request.strip(), type="primary", use_container_width=True):
+                try:
+                    # session_stateから設定を取得
+                    saved_model = st.session_state.get('model', model)
+                    saved_target_length = st.session_state.get('target_length', target_length)
+                    book_info = st.session_state.get('book_info')
+
+                    # 改善リクエストを含めてナレーションを再生成
+                    with st.spinner("🤖 AIがナレーションを改善中..."):
+                        generator = ScenarioGenerator(model=saved_model)
+
+                        # 改善要望を追加したプロンプト
+                        improved_book_info = BookInfo(
+                            title=book_info.title,
+                            description=f"{book_info.description}\n\n【改善要望】\n現在のナレーション:「{narration_text}」\n改善内容: {improvement_request}",
+                            target_audience=book_info.target_audience,
+                            mood=book_info.mood
+                        )
+
+                        improved_narration = generator.generate_narration(improved_book_info, language="ja", target_length=saved_target_length)
+
+                        # session_stateを更新
+                        st.session_state.narration_text = improved_narration
+                        st.success("✅ 改善版ナレーション生成完了！")
+                        st.rerun()
+
+                except Exception as e:
+                    st.error(f"❌ エラー: {e}")
+                    st.exception(e)
+
+        with col2:
+            if st.button("🔄 別のバージョンを生成", type="secondary", use_container_width=True):
+                st.rerun()
+
+        st.markdown("---")
 
         # 次のステップ
         st.info("💡 このナレーションを使ってスライドショー動画を生成できます！")
