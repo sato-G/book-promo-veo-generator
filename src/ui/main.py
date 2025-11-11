@@ -5,8 +5,15 @@ Streamlit UIモジュール
 書籍プロモーション動画生成のWebインターフェース
 """
 
-import streamlit as st
+import sys
 from pathlib import Path
+
+# プロジェクトルートをPythonパスに追加（Streamlit実行場所に依存しないため）
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import streamlit as st
 from src.generators.veo3_sample import check_api_key, generate_video_from_upload
 from src.generators.veo3_talking_video import generate_video as generate_talking_video
 
