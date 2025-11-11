@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
 """
-「あの戦争は何だったのか」縦型動画（横スライド切り替え）
-- 12秒の動画
-- 縦型（1080x1920）
-- 横スライドで画像切り替え（4枚）
-- ナレーション同期字幕
+汎用スライドショー動画生成モジュール
+
+画像パスのリストから縦型スライドショー動画を生成
 """
 from pathlib import Path
+from typing import List, Dict, Optional, Tuple
+import shutil
+import tempfile
+
 from moviepy import (
     ImageClip,
     CompositeVideoClip,
     AudioFileClip
 )
 from PIL import Image, ImageDraw, ImageFont
-import tempfile
 import numpy as np
 
 # Text-to-Speechクライアントをインポート
-from text_to_speech_client import TextToSpeechClient
+from .text_to_speech_client import TextToSpeechClient
 
 
 def create_slide_transition_clip(
     image_path: Path,
     duration: float,
     resolution: tuple = (1080, 1920),
-    slide_direction: str = 'left'  # 'left' or 'right'
+    slide_direction: str = 'left',
+    pan_enabled: bool = True,
+    pan_scale: float = 1.15
 ):
     """
     横スライドトランジション + 横パン効果付きの画像クリップを作成
@@ -34,14 +37,16 @@ def create_slide_transition_clip(
         duration: 表示時間
         resolution: 縦型解像度 (width, height) = (1080, 1920)
         slide_direction: スライド方向 ('left' = 左から右へ, 'right' = 右から左へ)
+        pan_enabled: パン効果を有効にするか
+        pan_scale: パン用の幅倍率
 
     Returns:
         スライド効果 + パン効果付きImageClip
     """
     target_width, target_height = resolution
 
-    # パン効果用に少し広めの画像を作成（1.15倍の幅）
-    pan_width = int(target_width * 1.15)
+    # パン効果用の幅
+    pan_width = int(target_width * pan_scale) if pan_enabled else target_width
     max_pan_offset = pan_width - target_width
 
     # 画像を読み込んでリサイズ
@@ -101,16 +106,20 @@ def create_slide_transition_clip(
                 return result
         else:
             # パン効果（トランジション後）
-            pan_progress = (t - transition_duration) / (duration - transition_duration)
+            if pan_enabled and max_pan_offset > 0:
+                pan_progress = (t - transition_duration) / (duration - transition_duration)
 
-            if slide_direction == 'left':
-                # 左から右へゆっくりパン
-                pan_offset = int(max_pan_offset * pan_progress)
-                return frame[:, pan_offset:pan_offset+target_width]
+                if slide_direction == 'left':
+                    # 左から右へゆっくりパン
+                    pan_offset = int(max_pan_offset * pan_progress)
+                    return frame[:, pan_offset:pan_offset+target_width]
+                else:
+                    # 右から左へゆっくりパン
+                    pan_offset = int(max_pan_offset * (1 - pan_progress))
+                    return frame[:, pan_offset:pan_offset+target_width]
             else:
-                # 右から左へゆっくりパン
-                pan_offset = int(max_pan_offset * (1 - pan_progress))
-                return frame[:, pan_offset:pan_offset+target_width]
+                # パンなし - 中央表示
+                return frame
 
     # 基本クリップを作成
     clip = ImageClip(temp_file.name).with_duration(duration)
@@ -183,129 +192,143 @@ def create_subtitle_clip_vertical(
             .with_start(start_time))
 
 
-def create_war_vertical_slide_12s(
-    image_dir: str,
-    output_path: str,
-    narration_segments: list = None,
-    bgm_path: str = None,
+def generate_slideshow(
+    image_paths: List[Path],
+    output_path: Path,
+    narration_segments: Optional[List[Dict]] = None,
+    bgm_path: Optional[Path] = None,
     duration: float = 12.0,
-    resolution: tuple = (1080, 1920)
+    resolution: Tuple[int, int] = (1080, 1920),
+    transition_advance: float = 0.2,
+    pan_enabled: bool = True,
+    pan_scale: float = 1.15,
+    enable_tts: bool = True
 ):
     """
-    縦型動画を生成（横スライド切り替え）
+    画像リストからスライドショー動画を生成
 
     Args:
-        image_dir: 画像ディレクトリ
+        image_paths: 画像パスのリスト
         output_path: 出力パス
         narration_segments: ナレーションセグメント
         bgm_path: BGMファイルパス
         duration: 動画の長さ
-        resolution: 解像度（縦型: 1080x1920）
+        resolution: 解像度
+        transition_advance: 切り替えを何秒早くするか
+        pan_enabled: パン効果を有効にするか
+        pan_scale: パン用の幅倍率
+        enable_tts: TTSを有効にするか
+
+    Returns:
+        出力パス
     """
-    image_dir = Path(image_dir)
-
     print("=" * 60)
-    print("🎬 「あの戦争は何だったのか」縦型動画生成（横スライド）")
+    print("🎬 スライドショー動画生成")
     print("=" * 60)
 
     # ==========================================
-    # 1. 画像を選択（4枚）
+    # 1. 画像を準備
     # ==========================================
-    print("\n【1】画像を準備中...")
+    print(f"\n【1】画像を準備中... ({len(image_paths)}枚)")
 
-    # 画像ファイルを取得
-    image_files = []
-    for i in range(1, 11):
-        compressed_path = image_dir / f"AI用素材_{i}_compressed.jpg"
-        img_path = image_dir / f"AI用素材_{i}.jpg"
-
-        if compressed_path.exists():
-            image_files.append(compressed_path)
-        elif img_path.exists():
-            image_files.append(img_path)
-
-    if not image_files:
-        raise ValueError(f"画像が見つかりません: {image_dir}")
-
-    # 最初の4枚を選択
-    selected_images = image_files[:4]
-
-    print(f"✓ 使用する画像: {len(selected_images)}枚")
+    if len(image_paths) < 1:
+        raise ValueError("少なくとも1枚の画像が必要です")
 
     # ==========================================
-    # 2. ナレーション音声を生成（セグメントごと）またはナレーションなしで字幕のみ
+    # 2. ナレーション音声を生成（オプション）
     # ==========================================
     updated_narration_segments = []
-    actual_duration = duration  # デフォルトは指定された長さ
+    narration_audio = None
+    actual_duration = duration
 
     if narration_segments:
-        print("\n【2】字幕セグメントを準備中...")
+        print(f"\n【2】字幕セグメントを準備中... ({len(narration_segments)}個)")
 
-        # まず字幕用のセグメントを準備（音声なし）
+        # 音声合成を試みる（オプション）
+        audio_segments = []
+        if enable_tts:
+            try:
+                print("\n【2-1】ナレーション音声を生成中...")
+                tts_client = TextToSpeechClient()
+
+                for i, segment in enumerate(narration_segments):
+                    result = tts_client.synthesize_speech(
+                        text=segment['text'],
+                        output_name=f"slideshow_narration_segment_{i+1}",
+                        language_code="ja-JP",
+                        voice_name=tts_client.JAPANESE_VOICES["male_a"],
+                        voice_gender="MALE",
+                        speaking_rate=1.2,
+                        pitch=-5.0,
+                        volume_gain_db=3.0,
+                        output_dir=Path("data/output/speech")
+                    )
+
+                    if result['status'] == 'success':
+                        audio_clip = AudioFileClip(str(result['audio_file']))
+                        audio_segments.append(audio_clip)
+                        print(f"   ✓ セグメント{i+1}音声生成完了: {audio_clip.duration:.2f}秒")
+                    else:
+                        print(f"   ✗ セグメント{i+1}音声生成失敗")
+
+                if audio_segments and len(audio_segments) == len(narration_segments):
+                    from moviepy import concatenate_audioclips
+                    narration_audio = concatenate_audioclips(audio_segments)
+                    print(f"✓ ナレーション音声生成完了: {narration_audio.duration:.2f}秒")
+                else:
+                    print("⚠️  一部の音声生成に失敗しました（字幕のみ表示されます）")
+                    audio_segments = []
+
+            except Exception as e:
+                print(f"⚠️  ナレーション音声生成スキップ: {e}")
+                print("✓ 字幕のみで続行します")
+                audio_segments = []
+
+        # 字幕用のセグメントを準備（実際のTTS長に基づく）
+        print("\n【2-2】字幕タイミングを調整中...")
         current_time = 0.0
-        segment_duration = duration / len(narration_segments)
 
-        for i, segment in enumerate(narration_segments):
-            updated_segment = {
-                'text': segment['text'],
-                'start': current_time,
-                'duration': segment_duration
-            }
-            updated_narration_segments.append(updated_segment)
-            print(f"   セグメント{i+1}: {segment_duration:.2f}秒 - {segment['text']}")
-            current_time += segment_duration
+        if audio_segments and len(audio_segments) == len(narration_segments):
+            # TTS音声の実際の長さに基づいて調整
+            print("   → TTS音声の実際の長さに基づいて調整")
+            for i, segment in enumerate(narration_segments):
+                actual_audio_duration = audio_segments[i].duration
+                updated_segment = {
+                    'text': segment['text'],
+                    'start': current_time,
+                    'duration': actual_audio_duration
+                }
+                updated_narration_segments.append(updated_segment)
+                print(f"   セグメント{i+1}: {actual_audio_duration:.2f}秒 - {segment['text']}")
+                current_time += actual_audio_duration
+
+            # 実際の長さを更新
+            actual_duration = current_time
+            print(f"✓ 実際の動画の長さ: {actual_duration:.2f}秒")
+        else:
+            # TTS音声なし：均等に分割
+            print("   → 均等分割（TTS音声なし）")
+            segment_duration = duration / len(narration_segments)
+            for i, segment in enumerate(narration_segments):
+                updated_segment = {
+                    'text': segment['text'],
+                    'start': current_time,
+                    'duration': segment_duration
+                }
+                updated_narration_segments.append(updated_segment)
+                print(f"   セグメント{i+1}: {segment_duration:.2f}秒 - {segment['text']}")
+                current_time += segment_duration
 
         narration_segments = updated_narration_segments
         print(f"✓ 字幕セグメント準備完了: {len(narration_segments)}個")
 
-        # 音声合成を試みる（失敗しても字幕は表示される）
-        try:
-            print("\n【2-オプション】ナレーション音声を生成中...")
-            tts_client = TextToSpeechClient()
-
-            audio_segments = []
-            for i, segment in enumerate(narration_segments):
-                result = tts_client.synthesize_speech(
-                    text=segment['text'],
-                    output_name=f"war_narration_segment_{i+1}",
-                    language_code="ja-JP",
-                    voice_name=tts_client.JAPANESE_VOICES["male_a"],
-                    voice_gender="MALE",
-                    speaking_rate=1.2,
-                    pitch=-5.0,
-                    volume_gain_db=3.0,
-                    output_dir=Path("data/output/speech")
-                )
-
-                if result['status'] == 'success':
-                    audio_clip = AudioFileClip(str(result['audio_file']))
-                    audio_segments.append(audio_clip)
-                    print(f"   ✓ セグメント{i+1}音声生成完了")
-
-            if audio_segments and len(audio_segments) == len(narration_segments):
-                from moviepy import concatenate_audioclips
-                narration_audio = concatenate_audioclips(audio_segments)
-                print(f"✓ ナレーション音声生成完了: {narration_audio.duration:.2f}秒")
-            else:
-                narration_audio = None
-                print("⚠️  一部の音声生成に失敗しました（字幕のみ表示されます）")
-
-        except Exception as e:
-            print(f"⚠️  ナレーション音声生成スキップ: {e}")
-            print("✓ 字幕のみで続行します")
-            narration_audio = None
-    else:
-        narration_audio = None
-        narration_segments = []
-
     # ==========================================
-    # 3. パン＆クロップクリップを作成（ナレーション区切りに合わせて）
+    # 3. 画像クリップを作成
     # ==========================================
-    print(f"\n【3】パン＆クロップクリップを作成中（動画の長さ: {actual_duration:.1f}秒）...")
+    print(f"\n【3】画像クリップを作成中（動画の長さ: {actual_duration:.1f}秒）...")
 
-    # ナレーションセグメントと画像の対応関係を計算
-    # 画像枚数とセグメント数から自動的に割り当て
-    num_images = len(selected_images)
+    # 画像タイミングを計算
+    num_images = len(image_paths)
     num_segments = len(narration_segments) if narration_segments else 1
 
     # 各画像にセグメントを均等に割り当て
@@ -326,25 +349,24 @@ def create_war_vertical_slide_12s(
         if narration_segments:
             start_time = narration_segments[start_segment]['start']
             end_time = narration_segments[end_segment - 1]['start'] + narration_segments[end_segment - 1]['duration']
-            duration = end_time - start_time
+            img_duration = end_time - start_time
         else:
             start_time = i * (actual_duration / num_images)
-            duration = actual_duration / num_images
+            img_duration = actual_duration / num_images
 
-        # 2枚目以降の画像は0.2秒早く開始（ナレーションより先に切り替え）
-        transition_advance = 0.2
+        # 2枚目以降の画像は早く開始（ナレーションより先に切り替え）
         if i > 0:
             start_time = max(0, start_time - transition_advance)
-            duration += transition_advance
+            img_duration += transition_advance
 
         image_timings.append({
-            'image_path': selected_images[i],
+            'image_path': image_paths[i],
             'start_time': start_time,
-            'duration': duration,
+            'duration': img_duration,
             'segments': list(range(start_segment, end_segment))
         })
 
-        print(f"   画像{i+1}: セグメント{start_segment+1}-{end_segment} ({duration:.2f}秒)")
+        print(f"   画像{i+1}: セグメント{start_segment+1}-{end_segment} ({img_duration:.2f}秒)")
 
     # クリップを作成
     video_clips = []
@@ -357,14 +379,17 @@ def create_war_vertical_slide_12s(
             timing['image_path'],
             timing['duration'],
             resolution=resolution,
-            slide_direction=slide_direction
+            slide_direction=slide_direction,
+            pan_enabled=pan_enabled,
+            pan_scale=pan_scale
         )
 
         # 開始時刻を設定
         clip = clip.with_start(timing['start_time'])
         video_clips.append(clip)
 
-        print(f"   {i+1}/{num_images}: {timing['image_path'].name} ({timing['start_time']:.2f}秒から{timing['duration']:.2f}秒間、slide from {slide_direction})")
+        print(f"   {i+1}/{num_images}: {timing['image_path'].name} "
+              f"({timing['start_time']:.2f}秒から{timing['duration']:.2f}秒間、slide from {slide_direction})")
 
     # CompositeVideoClipで合成
     main_video = CompositeVideoClip(video_clips, size=resolution)
@@ -399,11 +424,11 @@ def create_war_vertical_slide_12s(
     # ==========================================
     bgm_audio = None
 
-    if bgm_path and Path(bgm_path).exists():
+    if bgm_path and bgm_path.exists():
         print("\n【5】BGMを追加中...")
 
         try:
-            bgm_audio = AudioFileClip(bgm_path)
+            bgm_audio = AudioFileClip(str(bgm_path))
 
             if bgm_audio.duration > actual_duration:
                 bgm_audio = bgm_audio.subclipped(0, actual_duration)
@@ -463,64 +488,12 @@ def create_war_vertical_slide_12s(
     print("=" * 60)
     print(f"📁 出力ファイル: {output_path}")
     print(f"⏱️  動画の長さ: {actual_duration:.2f}秒")
-    print(f"📐 解像度: {resolution[0]}x{resolution[1]} (縦型 9:16)")
-    print(f"🎬 画像枚数: {len(selected_images)}枚")
-    print(f"📝 字幕: {len(overlays)}個 (ナレーション同期)")
+    print(f"📐 解像度: {resolution[0]}x{resolution[1]}")
+    print(f"🎬 画像枚数: {num_images}枚")
+    print(f"📝 字幕: {len(overlays)}個")
     print(f"🎙️  ナレーション: {'あり' if narration_audio else 'なし'}")
     print(f"🎵 BGM: {'あり' if bgm_audio else 'なし'}")
-    print(f"✨ アニメーション: パン＆クロップ（ゆっくり）")
+    print(f"✨ アニメーション: 横スライド + {'パン' if pan_enabled else 'パンなし'}")
     print("=" * 60)
 
-
-def main():
-    """メイン関数"""
-
-    # 設定
-    image_dir = "data/『あの戦争は何だったのか』/images"
-    output_path = "data/output/ano_senso_vertical_slide_12s.mp4"
-
-    # ナレーションセグメント（音声の長さに合わせて自動調整）
-    narration_segments = [
-        {
-            "text": "日本はどこで間違えたのか?",
-            "start": 0.0,
-            "duration": 3.0
-        },
-        {
-            "text": "掲げた理想はすべて誤りだったのか?",
-            "start": 3.0,
-            "duration": 3.0
-        },
-        {
-            "text": "「大東亜」は日本をどう見ていたか?",
-            "start": 6.0,
-            "duration": 3.0
-        },
-        {
-            "text": "戦後80年、今こそ問い直す",
-            "start": 9.0,
-            "duration": 2.0
-        },
-        {
-            "text": "「私たちにとっての戦争」とは。",
-            "start": 11.0,
-            "duration": 2.0
-        }
-    ]
-
-    # BGMパス
-    bgm_path = "data/bgm/yoiyaminoseaside.mp3"
-
-    # 動画生成
-    create_war_vertical_slide_12s(
-        image_dir=image_dir,
-        output_path=output_path,
-        narration_segments=narration_segments,
-        bgm_path=bgm_path,
-        duration=12.0,
-        resolution=(1080, 1920)  # 縦型 9:16
-    )
-
-
-if __name__ == "__main__":
-    main()
+    return output_path
