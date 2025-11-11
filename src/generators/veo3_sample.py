@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""
+Veo 3.1 動画生成サンプル
+
+書籍表紙画像から動画を生成するシンプルなサンプルコード。
+
+使い方:
+    export GOOGLE_API_KEY=your_api_key
+    python veo3_sample.py --image path/to/book_cover.png --prompt "動画生成のプロンプト"
+"""
+
+import os
+import sys
+import time
+import argparse
+from pathlib import Path
+from datetime import datetime
+from dotenv import load_dotenv
+
+# 環境変数読み込み
+load_dotenv()
+
+# Fail-First: 依存ライブラリのインポートエラーを早期検出
+try:
+    from google import genai
+    from google.genai import types
+except ImportError as e:
+    raise SystemExit(
+        f"Required library not found: {e}\n"
+        "Install with: pip install google-generativeai"
+    )
+
+
+def check_api_key() -> tuple[bool, str]:
+    """
+    API Keyの設定を確認
+
+    Returns:
+        (bool, str): (設定されているか, API Key or エラーメッセージ)
+    """
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if api_key:
+        return True, api_key
+    else:
+        return False, "GOOGLE_API_KEY が未設定です"
+
+
+def generate_video_from_upload(
+    uploaded_file,
+    prompt: str,
+    output_dir: Path = Path("data/output")
+) -> Path:
+    """
+    アップロードされた画像から動画を生成（Streamlit用）
+
+    Args:
+        uploaded_file: Streamlitのアップロードファイルオブジェクト
+        prompt: 動画生成プロンプト
+        output_dir: 出力ディレクトリ
+
+    Returns:
+        生成された動画ファイルのパス
+
+    Raises:
+        Exception: 動画生成中のエラー
+    """
+    # 一時ファイルに保存
+    temp_dir = Path("temp")
+    temp_dir.mkdir(exist_ok=True)
+    temp_image_path = temp_dir / uploaded_file.name
+
+    try:
+        # アップロードされた画像を保存
+        with open(temp_image_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        # 動画生成
+        output_path = generate_video(
+            image_path=temp_image_path,
+            prompt=prompt,
+            output_dir=output_dir,
+        )
+
+        return output_path
+
+    finally:
+        # 一時ファイル削除
+        if temp_image_path.exists():
+            temp_image_path.unlink()
+
+
+def generate_video(
+    image_path: Path,
+    prompt: str,
+    output_dir: Path = Path("data/output"),
+) -> Path:
+    """
+    Veo 3.0で動画生成
+
+    Args:
+        image_path: 入力画像パス（PNG/JPG）
+        prompt: 動画生成プロンプト
+        output_dir: 出力ディレクトリ
+
+    Returns:
+        生成された動画ファイルのパス
+
+    Raises:
+        SystemExit: 認証情報が未設定
+        FileNotFoundError: 画像ファイルが存在しない
+    """
+    # Fail-First: 入力検証
+    if not image_path.exists():
+        raise FileNotFoundError(f"Image not found: {image_path}")
+
+    # Fail-First: API Key確認
+    if not os.getenv("GOOGLE_API_KEY"):
+        raise SystemExit(
+            "ERROR: GOOGLE_API_KEY not set in environment.\n"
+            "Set with: export GOOGLE_API_KEY=your_api_key"
+        )
+
+    print(f"\n{'='*60}")
+    print(f"🎥 Veo 3.0 動画生成")
+    print(f"{'='*60}")
+    print(f"入力画像: {image_path}")
+    print(f"プロンプト: {prompt}")
+    print(f"{'='*60}\n")
+
+    # Google Generative AI Client初期化
+    client = genai.Client()
+
+    # 画像をバイナリで読み込み
+    mime_type = "image/png" if image_path.suffix.lower() == ".png" else "image/jpeg"
+    image_bytes = image_path.read_bytes()
+    image = types.Image(imageBytes=image_bytes, mimeType=mime_type)
+
+    # 動画生成開始
+    print("⏳ 動画生成を開始...")
+    operation = client.models.generate_videos(
+        model="veo-3.0-generate-001",
+        prompt=prompt,
+        image=image,
+    )
+
+    # ポーリングで完了を待機
+    wait_count = 0
+    while not operation.done:
+        wait_count += 1
+        print(f"⏳ 生成中... ({wait_count * 10}秒経過)")
+        time.sleep(10)
+        operation = client.operations.get(operation)
+
+    # 結果確認（Fail-First）
+    if not getattr(operation, 'response', None):
+        raise SystemExit(
+            "ERROR: Video generation failed. No response returned.\n"
+            "Try a simpler prompt or check API quota."
+        )
+
+    if not getattr(operation.response, 'generated_videos', None):
+        raise SystemExit(
+            "ERROR: Video generation failed. No video returned.\n"
+            "Try relaxing constraints in the prompt."
+        )
+
+    # 生成された動画を取得
+    video = operation.response.generated_videos[0]
+    client.files.download(file=video.video)
+
+    # 出力ファイル名生成
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    output_path = output_dir / f"veo3_{timestamp}.mp4"
+
+    # 動画保存
+    video.video.save(str(output_path))
+
+    print(f"\n{'='*60}")
+    print(f"✅ 動画生成完了")
+    print(f"{'='*60}")
+    print(f"出力: {output_path}")
+    print(f"サイズ: {output_path.stat().st_size / (1024*1024):.2f} MB")
+    print(f"{'='*60}\n")
+
+    return output_path
+
+
+def main():
+    """コマンドライン引数を処理してVeo 3.1で動画生成"""
+    parser = argparse.ArgumentParser(
+        description="Veo 3.1で書籍表紙画像から動画を生成",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用例:
+  # 基本的な使い方
+  python veo3_sample.py --image book_cover.png --prompt "本のタイトルが浮かび上がる"
+
+  # 動画長さを指定
+  python veo3_sample.py --image book_cover.png --prompt "ズームイン" --duration 6
+
+  # 出力ディレクトリを指定
+  python veo3_sample.py --image book_cover.png --prompt "回転" --output custom_output/
+        """
+    )
+
+    parser.add_argument(
+        "--image",
+        type=Path,
+        required=True,
+        help="入力画像パス（書籍表紙など）"
+    )
+
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        required=True,
+        help="動画生成プロンプト（例: 'カメラが本に近づく'）"
+    )
+
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("data/output"),
+        help="出力ディレクトリ（デフォルト: data/output/）"
+    )
+
+    args = parser.parse_args()
+
+    # 動画生成実行
+    try:
+        output_path = generate_video(
+            image_path=args.image,
+            prompt=args.prompt,
+            output_dir=args.output,
+        )
+        print(f"✅ 成功: {output_path}")
+        sys.exit(0)
+
+    except Exception as e:
+        print(f"\n❌ エラー: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
