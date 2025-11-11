@@ -20,6 +20,7 @@ from src.generators.explainer_slideshow import generate_explainer, build_narrati
 from src.generators.cover_card_generator import generate_cover_card
 from src.generators.nanobana_client import NanobanaClient
 from src.generators.gemini_text_to_image import generate_images as gemini_generate_images
+from src.generators.video_concat import concat_videos
 import os
 from PIL import Image, ImageDraw, ImageFont
 
@@ -37,12 +38,13 @@ def main():
         st.error(f"❌ {message}")
         st.stop()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Veo3 画像→動画 (Simple)",
         "Veo3 Talking Video (口パク)",
         "Explainer Slideshow",
         "Cover Card",
-        "Text to Image"
+        "Text to Image",
+        "Concat Videos"
     ])
 
     # --- Tab 1: 既存のシンプル生成（表紙の動きなど） ---
@@ -406,6 +408,95 @@ def main():
                 except Exception as e:
                     st.error(f"❌ 生成エラー: {e}")
                     st.exception(e)
+
+    # --- Tab 6: Concat Videos ---
+    with tab6:
+        st.subheader("Concat Videos（複数動画を順番に連結）")
+
+        uploaded_videos = st.file_uploader(
+            "動画を選択（複数）", type=["mp4", "mov", "m4v"], accept_multiple_files=True
+        )
+
+        # 並び順管理
+        order_key = "concat_order"
+        if uploaded_videos:
+            if order_key not in st.session_state or len(st.session_state[order_key]) != len(uploaded_videos):
+                st.session_state[order_key] = list(range(len(uploaded_videos)))
+
+            st.caption("アップロード順で初期化。上下ボタンで並び替え可能です。")
+            ordered = [uploaded_videos[i] for i in st.session_state[order_key]]
+            for idx, uf in enumerate(ordered):
+                c1, c2, c3 = st.columns([6, 1, 1])
+                with c1:
+                    st.text(f"{idx+1}. {uf.name}")
+                with c2:
+                    if st.button("↑", key=f"concat_up_{idx}", disabled=(idx == 0)):
+                        o = st.session_state[order_key]
+                        o[idx], o[idx-1] = o[idx-1], o[idx]
+                        st.rerun()
+                with c3:
+                    if st.button("↓", key=f"concat_dn_{idx}", disabled=(idx == len(ordered)-1)):
+                        o = st.session_state[order_key]
+                        o[idx], o[idx+1] = o[idx+1], o[idx]
+                        st.rerun()
+
+        st.markdown("---")
+        cA, cB, cC = st.columns(3)
+        with cA:
+            fps = st.number_input("出力FPS", min_value=1, max_value=120, value=24)
+        with cB:
+            res_text = st.text_input("解像度 (例: 1080x1920)", value="1080x1920")
+        with cC:
+            method = st.selectbox("連結方法", options=["compose", "chain"], index=0)
+
+        def _parse_res(txt: str):
+            try:
+                w, h = txt.lower().split("x")
+                return int(w), int(h)
+            except Exception:
+                return None
+
+        if st.button("🎬 連結して書き出す", disabled=not uploaded_videos):
+            try:
+                temp_dir = Path("temp/concat")
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                paths = []
+                for i in st.session_state.get(order_key, []):
+                    uf = uploaded_videos[i]
+                    p = temp_dir / uf.name
+                    with open(p, "wb") as f:
+                        f.write(uf.getbuffer())
+                    paths.append(p)
+
+                out_dir = Path("data/output")
+                out_dir.mkdir(parents=True, exist_ok=True)
+                import time as _t
+                out = out_dir / f"merged_{int(_t.time())}.mp4"
+
+                res = _parse_res(res_text.strip()) if res_text.strip() else None
+                with st.spinner("⏳ 連結中..."):
+                    merged = concat_videos(
+                        inputs=paths,
+                        output=out,
+                        fps=int(fps) if fps else None,
+                        resolution=res,
+                        method=method,
+                    )
+
+                st.success(f"✅ 連結完了: {merged}")
+                if merged.exists():
+                    st.video(str(merged))
+                    with open(merged, "rb") as vf:
+                        st.download_button(
+                            label="📥 動画をダウンロード",
+                            data=vf,
+                            file_name=merged.name,
+                            mime="video/mp4",
+                            key="dl_concat",
+                        )
+            except Exception as e:
+                st.error(f"❌ エラー: {e}")
+                st.exception(e)
 
 
 def _make_placeholder(path: Path, idx: int, size=(1080, 1920)):

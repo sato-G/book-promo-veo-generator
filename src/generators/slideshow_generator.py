@@ -168,9 +168,9 @@ def create_subtitle_clip_vertical(
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
 
-    # 位置を計算（下部中央）
+    # 位置を計算（中央） ※オーバーレイ適用時にちょうど良い位置に
     x = (size[0] - text_width) // 2
-    y = size[1] - 250 - text_height
+    y = (size[1] - text_height) // 2  # 中央配置（オーバーレイで-400px上にスライドすると見やすい位置に）
 
     # 黒い縁取り（太め）
     for offset_x in range(-4, 5):
