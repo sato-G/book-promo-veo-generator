@@ -64,11 +64,22 @@
   - Gemini Text to ImageタブでAI画像生成
   - nanobanaクライアント統合済み
 
-**Streamlit UI未統合のプログラム:**
-以下のプログラムは実装済みですが、現在はテストスクリプト経由での実行のみ対応しています：
-- [opening_animation_generator.py](src/generators/opening_animation_generator.py): テストスクリプト `src/simpletest/test_opening_animation.py`
-- [video_overlay_generator.py](src/generators/video_overlay_generator.py): テストスクリプト `src/simpletest/test_video_overlay.py`
-- [video_frame_generator.py](src/generators/video_frame_generator.py): テストスクリプト `src/simpletest/test_video_frame.py`
+**Streamlit UI統合状況:**
+全機能を単一のUI（`src/ui/main.py`）に統合済み。利用順でタブを配置し、主要パラメータはUIから設定できます。
+
+- Scenario（シナリオ生成）: OpenAIで短尺ナレーション生成
+- Text to Image: nanobana CLI / Gemini API（GOOGLE_API_KEY）
+- Quick Slideshow: 複数画像から短尺スライドショー（字幕/TTSなし）
+- Explainer Slideshow: 長文→自動分割→字幕/TTS→スライド、書影＋最終タイトル対応
+- Opening Animation: 画像→回転ズームバック（字幕/TTS可）
+- Overlay: 動画に表紙等を重ねる（位置/スケール/アニメ/帯/字幕）
+- Frame: 動画にフレーム＋タイトル＋表紙（ブランド化）
+- Cover Card: 表紙＋タイトルの締めカット（字幕位置/色/サイズ、TTS）
+- Veo3 画像→動画 (Simple): 画像＋プロンプトのシンプル生成
+- Veo3 Talking Video: 画像＋プロンプト（ふりがなテンプレ例）
+- Concat Videos: 複数動画を順に連結（FPS/解像度統一可）
+
+実行: `streamlit run src/ui/main.py`
 
 **前提条件:**
 - Google Cloud TTS: `GOOGLE_APPLICATION_CREDENTIALS` を設定

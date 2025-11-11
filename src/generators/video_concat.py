@@ -50,8 +50,7 @@ def concat_videos(
     try:
         for p in inputs:
             clip = VideoFileClip(str(p))
-            if resolution:
-                clip = clip.resized(newsize=resolution)
+            # シンプル方針: リサイズしない（composeで自動調整に任せる）
             clips.append(clip)
             if inferred_fps is None and getattr(clip, "fps", None):
                 inferred_fps = int(round(clip.fps))
@@ -105,4 +104,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
