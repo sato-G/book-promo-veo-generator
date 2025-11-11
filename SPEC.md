@@ -7,46 +7,71 @@
 ---
 
 ## 📋 現在のタスク
+最後のチェック（やりたいことができているか）
+- ユースケース
+  - 『あの戦争は何だったのか』
+    - 実際の写真を用いたショート動画生成
+    - インパクトのある宣伝内容
+  - 『土と生命の46億年史』 
+    - 作者が話すとかできるのか
+  - 『「腸と脳」の科学』
+    - 解説→本のタイトルという流れができるか。
+- streamlitに必要なプログラム
+ - 内容を入力して、8秒の宣伝動画のシナリオを出力するプログラム
+ - 最初の2秒で、視聴者を惹きつけるアニメーションができるプログラム
+ - 実際の写真を用いて本の解説をするプログラム
+ - 写真の人物が話すプログラム
+ - 解説ができるプログラム
+ - 画像生成ができるプログラム
+ - 作成した動画をオーバーレイするプログラム
+ - 本の宣伝として最後の3秒を使うプログラム
+ - 動画どうしを繋げるプログラム
 
-### Phase 3: アニメーション強化とUI改善
-
-**目標**:
-- スライドショー動画のクオリティ向上
-- 視覚的インパクトの強化
-- プロフェッショナルな仕上がり
-
-**タスク:**
-
-#### Phase 3-A: 冒頭アニメーション
-- ショート動画の冒頭にインパクトのあるアニメーションを追加
-- 拡大された画像 → 元サイズにズームバック
-- 字幕付きで視覚的な引きを強化
-- シナリオAIで生成されたキャッチコピーを使用
-- **難易度**: 中 / **効果**: 高
-
-#### Phase 3-B: 動画フレーム追加
-- 動画を囲うように本の表紙やタイトルを表示
-- ブランディング要素の追加
-- 視覚的な統一感の向上
-- **難易度**: 低〜中 / **効果**: 中
-
-#### Phase 3-C: nanobana画像変換統合
-- nanobanaを使ってimage to image変換
-- プロモーション用の高品質画像を自動生成
-- 画像クオリティの向上
-- **難易度**: 高 / **効果**: 高
-
-
-## 残りタスク
-- 『「腸と脳」の科学』を対象
-    - 本書の一部を抜粋したWord（1500字程度）を入れております。
-    - この部分の解説動画が作れると嬉しいのですが、ご検討いただけますでしょうか？
-    - 解説→最後に書影＆本のタイトル…という流れになると嬉しいです。
-    - ビジュアルがほぼないので、イメージ画像で構いません。
-
----
 
 ## 📋 終了したタスク
+
+### Phase 3: アニメーション強化とUI改善 🎬 ✅
+**目標**: スライドショー動画のクオリティ向上と視覚的インパクトの強化
+
+**実装完了内容:**
+- **冒頭アニメーション**: [opening_animation_generator.py](src/generators/opening_animation_generator.py)
+  - 360度回転しながらズームバックする迫力のある演出
+  - キャッチコピー字幕の焼き込み（黄色ゴールド、フォントサイズ100pt）
+  - TTSナレーション統合（オプション）
+  - 2秒構成: 0.2秒アニメーション + 1.8秒静止
+  - テストスクリプト: `src/simpletest/test_opening_animation.py`
+
+- **動画オーバーレイ**: [video_overlay_generator.py](src/generators/video_overlay_generator.py)
+  - 動画に白い余白を追加（レターボックス効果）
+  - 表紙画像のオーバーレイ配置（静止/浮遊アニメーション）
+  - 上部白帯 + 字幕表示機能（オプション、今後の展開用）
+  - テストスクリプト: `src/simpletest/test_video_overlay.py`
+
+- **動画フレーム**: [video_frame_generator.py](src/generators/video_frame_generator.py)
+  - 動画周囲にブランディング要素を追加
+  - タイトル、表紙、著者名の統合表示
+  - テストスクリプト: `src/simpletest/test_video_frame.py`
+
+- **字幕位置最適化**: [slideshow_generator.py](src/generators/slideshow_generator.py)
+  - 字幕位置を中央配置に変更（オーバーレイとの互換性向上）
+  - 動画単体でもオーバーレイ適用後も見やすい位置に自動調整
+
+- **動画連結機能**: [video_concat.py](src/generators/video_concat.py)
+  - 複数動画を順番に連結するユーティリティ
+  - UI: [main.py](src/ui/main.py) Concat Videosタブ
+
+- **Text to Image統合**: [main.py](src/ui/main.py)
+  - Gemini Text to ImageタブでAI画像生成
+  - nanobanaクライアント統合済み
+
+**Streamlit UI未統合のプログラム:**
+以下のプログラムは実装済みですが、現在はテストスクリプト経由での実行のみ対応しています：
+- [opening_animation_generator.py](src/generators/opening_animation_generator.py): テストスクリプト `src/simpletest/test_opening_animation.py`
+- [video_overlay_generator.py](src/generators/video_overlay_generator.py): テストスクリプト `src/simpletest/test_video_overlay.py`
+- [video_frame_generator.py](src/generators/video_frame_generator.py): テストスクリプト `src/simpletest/test_video_frame.py`
+
+**前提条件:**
+- Google Cloud TTS: `GOOGLE_APPLICATION_CREDENTIALS` を設定
 
 ### Phase 5: Veo3音声対応動画 🎙️ ✅
 **目標**: 人物が話す動画の生成
