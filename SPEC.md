@@ -1,34 +1,12 @@
 # 書籍プロモーション動画生成システム - 仕様書
 
-**バージョン**: 3.0
+**バージョン**: 4.0
 **最終更新**: 2025-11-12
 **ステータス**: Active
 
 ---
 
 ## 📋 現在のタスク
-
-### Phase 4: シナリオ作成AI 🤖 ⭐️ 最優先
-
-**目標**: LLMを活用した自動シナリオ生成
-- プロンプトエンジニアリングのデモンストレーション
-- シナリオ生成がアニメーション設計の基盤となる
-
-**実装内容:**
-- 書籍情報を入力として受け取る（タイトル、説明、ターゲット、雰囲気）
-- OpenAI GPT-4o/GPT-5 APIを使用してシナリオ自動生成（冒頭インパクト用キャッチコピーが最初に出力）
-
-- **技術**: OpenAI API (GPT-4o/GPT-5)
-- **難易度**: 中 / **効果**: 非常に高
-
-**次のステップ:**
-- `feature/scenario-generator` ブランチで開発
-- プロンプトエンジニアリングで高品質な出力を実現
-
-
----
-
-## 📋 次期タスク（Phase 3, 5以降）
 
 ### Phase 3: アニメーション強化とUI改善
 
@@ -58,35 +36,51 @@
 - 画像クオリティの向上
 - **難易度**: 高 / **効果**: 高
 
-### Phase 5: Veo3音声対応動画 🎙️
+---
+
+## 📋 終了したタスク
+
+### Phase 5: Veo3音声対応動画 🎙️ ✅
 **目標**: 人物が話す動画の生成
 - Veo3を使って、入力した画像の人物が話す動画を生成
 - リアルな音声リップシンク
 - プロモーション動画の多様化
-- **難易度**: 高 / **効果**: 高
 
-- 残りタスク
-    - Veo3プロンプト案を提案（オプション）
-    - 各画像のヒント・イメージ提案を出力
-
-実装済み（初期版）:
-- 生成モジュール: `src/generators/veo3_talking_video.py`
+**実装完了内容:**
+- 生成モジュール: [veo3_talking_video.py](src/generators/veo3_talking_video.py)
   - 入力画像 + 音声（またはTTS）でTalking Head動画を生成
   - プロンプトエンジニアリング用オプション（emotion/camera/style/language）
   - Veo 3.1の参照画像コンフィグを使用し、未対応環境では3.0形式にフォールバック
   - SDKが音声参照を未サポートな場合は、生成後に音声を自動でmux（後付け合成）
+- UI: [main.py](src/ui/main.py) に2タブ構成で統合
+  - Tab 1: Veo3 画像→動画 (Simple)
+  - Tab 2: Veo3 Talking Video (口パク重視)
+- テストスクリプト: `src/simpletest/test_veo3_talking.py`
 
-簡易テスト:
-- `src/simpletest/test_veo3_talking.py`
-- 例: `python src/simpletest/test_veo3_talking.py --image data/image_sample/test1.jpg --text "本の魅力を紹介します"`
-
-前提:
+**前提条件:**
 - `GOOGLE_API_KEY` を設定
 - TTSを使う場合は `GOOGLE_APPLICATION_CREDENTIALS` を設定
 
----
+### Phase 4: シナリオ作成AI 🤖 ✅
+**目標**: LLMを活用した自動ナレーション生成
+- プロンプトエンジニアリングのデモンストレーション
+- 8秒ショート動画用の質の高いナレーションテキスト生成
 
-## 📋 終了したタスク
+**実装完了内容:**
+- 生成モジュール: [scenario_generator.py](src/generators/scenario_generator.py)
+  - OpenAI GPT-4o/GPT-5 (gpt-5-chat-latest, gpt-4o) API統合
+  - シンプルなプロンプト設計（システム+ユーザープロンプト統合）
+  - 最小限のパラメータ（model + messages のみ）で高品質出力
+  - 50〜60文字の最適なナレーション長
+- UI: [scenario_app.py](src/ui/scenario_app.py) (ポート: 8501)
+  - 書籍情報入力（タイトル、説明、ターゲット読者、雰囲気）
+  - 宣伝スタイルカスタマイズ機能
+  - モデル選択（gpt-5-chat-latest / gpt-4o）
+  - 目標文字数調整機能
+  - 生成結果の統計表示（文字数、最初の20文字、推定読み上げ時間）
+
+**前提条件:**
+- `.env`ファイルに `OPENAI_API_KEY` を設定
 
 ### Phase 1: Veo3検証 ✅
 - image to videoの検証完了
