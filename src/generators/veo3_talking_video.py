@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 from dotenv import load_dotenv
 
@@ -55,12 +55,64 @@ def _timestamped_outpath(prefix: str, suffix: str, outdir: Path) -> Path:
     return outdir / f"{prefix}_{ts}{suffix}"
 
 
+def _poll_operation(client: Any, operation: Any, *, debug: bool = False) -> Any:
+    waited = 0
+    while not getattr(operation, "done", False):
+        waited += 10
+        print(f"⏳ 生成中... ({waited}s)")
+        time.sleep(10)
+        operation = client.operations.get(operation)
+    if debug:
+        # 可能ならエラーやメタ情報を表示
+        err = getattr(operation, "error", None)
+        if err:
+            print(f"⚠️ Operation error: {err}")
+    return operation
+
+
+def _extract_result(operation: Any) -> Any:
+    result = getattr(operation, "result", None) or getattr(operation, "response", None)
+    return result
+
+
+def _start_veo31(client: Any, prompt: str, image: Any) -> Any:
+    # Veo 3.1 参照画像コンフィグ
+    try:
+        reference = types.VideoGenerationReferenceImage(
+            image=image,
+            referenceType=types.VideoGenerationReferenceType.ASSET,
+        )
+        config = types.GenerateVideosConfig(
+            referenceImages=[reference],
+            durationSeconds=6,
+        )
+        return client.models.generate_videos(
+            model="veo-3.1-generate-preview",
+            prompt=prompt,
+            config=config,
+        )
+    except Exception as e:
+        raise RuntimeError(f"veo-3.1 start failed: {e}")
+
+
+def _start_veo30(client: Any, prompt: str, image: Any, model: str) -> Any:
+    try:
+        return client.models.generate_videos(
+            model=model,
+            prompt=prompt,
+            image=image,
+        )
+    except Exception as e:
+        raise RuntimeError(f"veo-3.0 start failed: {e}")
+
+
 def generate_video(
     image_path: Path,
     prompt: str,
     *,
     output_dir: Path = Path("data/output"),
     model: str = "veo-3.0-generate-001",
+    debug: bool = False,
 ) -> Path:
     """
     画像 + プロンプトから動画を生成（シンプル）
@@ -93,24 +145,45 @@ def generate_video(
     image_bytes = image_path.read_bytes()
     image = types.Image(imageBytes=image_bytes, mimeType=mime)
 
-    # もっともシンプルな呼び出し（3.0形式）
-    operation = client.models.generate_videos(
-        model=model,
-        prompt=prompt,
-        image=image,
-    )
+    # モデル指定に応じて試行順を決定
+    if isinstance(model, str) and model.startswith("veo-3.0"):
+        attempt_order = ("veo30",)
+    elif isinstance(model, str) and model.startswith("veo-3.1"):
+        attempt_order = ("veo31",)
+    else:
+        attempt_order = ("veo31", "veo30")
 
-    # 完了待ち
-    waited = 0
-    while not getattr(operation, "done", False):
-        waited += 10
-        print(f"⏳ 生成中... ({waited}s)")
-        time.sleep(10)
-        operation = client.operations.get(operation)
+    last_error_msg = None
+    for attempt in attempt_order:
+        try:
+            if attempt == "veo31":
+                operation = _start_veo31(client, prompt, image)
+            else:
+                operation = _start_veo30(client, prompt, image, model)
 
-    result = getattr(operation, "result", None) or getattr(operation, "response", None)
-    if not result or not getattr(result, "generated_videos", None):
-        raise RuntimeError("Video generation failed: no result")
+            operation = _poll_operation(client, operation, debug=debug)
+            result = _extract_result(operation)
+            videos = getattr(result, "generated_videos", None)
+            if videos:
+                gen_video = videos[0]
+                client.files.download(file=gen_video.video)
+                out_path = _timestamped_outpath("veo3_simple", ".mp4", output_dir)
+                gen_video.video.save(str(out_path))
+
+                print("\n" + "=" * 60)
+                print("✅ 生成完了")
+                print("=" * 60)
+                print(f"出力: {out_path}")
+                print("=" * 60 + "\n")
+                return out_path
+
+            # 結果なし → 次の試行へ
+            err = getattr(operation, "error", None)
+            last_error_msg = f"no videos (attempt={attempt})" + (f", error={err}" if err else "")
+        except Exception as e:
+            last_error_msg = f"{attempt} failed: {e}"
+
+    raise RuntimeError(f"Video generation failed: {last_error_msg or 'unknown error'}")
 
     gen_video = result.generated_videos[0]
     client.files.download(file=gen_video.video)
@@ -134,6 +207,7 @@ def main():
     parser.add_argument("--prompt", type=str, help="Veoへのプロンプト（未指定ならDEFAULT_PROMPT）")
     parser.add_argument("--model", type=str, default="veo-3.0-generate-001")
     parser.add_argument("--output", type=Path, default=Path("data/output"))
+    parser.add_argument("--debug", action="store_true", help="詳細ログを表示")
 
     args = parser.parse_args()
 
@@ -145,6 +219,7 @@ def main():
             prompt=p,
             output_dir=args.output,
             model=args.model,
+            debug=args.debug,
         )
         print(f"✅ 出力: {out}")
     except Exception as e:

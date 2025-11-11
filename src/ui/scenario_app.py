@@ -59,6 +59,12 @@ def main():
         help="書籍の内容を簡潔に説明してください（2〜3文程度）"
     )
 
+    promo_style = st.text_input(
+        "宣伝スタイル（オプション）",
+        placeholder="例: 大袈裟に表現、丁寧に表現、ユーモラスに、情熱的に、落ち着いて",
+        help="ナレーションの表現スタイルを指定できます（未入力でも可）"
+    )
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -91,21 +97,14 @@ def main():
 
     with model_col1:
         model_options = [
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4-turbo",
-            "gpt-4",
-            "o1",
-            "o1-preview",
-            "o1-mini",
-            "gpt-5",
-            "gpt-5-mini"
+            "gpt-5-chat-latest",
+            "gpt-4o"
         ]
         model = st.selectbox(
             "AIモデル",
             options=model_options,
             index=0,
-            help="gpt-4o: 高品質・推奨 / gpt-4o-mini: 高速・低コスト / o1: 推論特化 / gpt-5/gpt-5-mini: 最新（利用可能な場合）"
+            help="gpt-5-chat-latest: GPT-5最新チャットモデル（推奨） / gpt-4o: GPT-4o高品質"
         )
 
     with model_col2:
@@ -134,10 +133,14 @@ def main():
             return
 
         try:
-            # BookInfo作成
+            # BookInfo作成（宣伝スタイルを説明に追加）
+            description_with_style = book_description
+            if promo_style.strip():
+                description_with_style = f"{book_description}\n\n【宣伝スタイル】{promo_style}"
+
             book_info = BookInfo(
                 title=book_title,
-                description=book_description,
+                description=description_with_style,
                 target_audience=target_audience,
                 mood=mood
             )
@@ -187,55 +190,6 @@ def main():
             height=100,
             help="このテキストをコピーして、スライドショー生成などに使用できます"
         )
-
-        st.markdown("---")
-
-        # 改善機能
-        st.subheader("✏️ ナレーションを改善")
-
-        improvement_request = st.text_area(
-            "改善したい内容を入力",
-            placeholder="例:\n- もっと短くしてください\n- 冒頭をもっとインパクトのある表現にしてください\n- 「戦争」という言葉を使わないでください\n- もっと明るい雰囲気にしてください",
-            height=100,
-            help="現在のナレーションをどのように改善したいか具体的に入力してください"
-        )
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("🔄 改善して再生成", disabled=not improvement_request.strip(), type="primary", use_container_width=True):
-                try:
-                    # session_stateから設定を取得
-                    saved_model = st.session_state.get('model', model)
-                    saved_target_length = st.session_state.get('target_length', target_length)
-                    book_info = st.session_state.get('book_info')
-
-                    # 改善リクエストを含めてナレーションを再生成
-                    with st.spinner("🤖 AIがナレーションを改善中..."):
-                        generator = ScenarioGenerator(model=saved_model)
-
-                        # 改善要望を追加したプロンプト
-                        improved_book_info = BookInfo(
-                            title=book_info.title,
-                            description=f"{book_info.description}\n\n【改善要望】\n現在のナレーション:「{narration_text}」\n改善内容: {improvement_request}",
-                            target_audience=book_info.target_audience,
-                            mood=book_info.mood
-                        )
-
-                        improved_narration = generator.generate_narration(improved_book_info, language="ja", target_length=saved_target_length)
-
-                        # session_stateを更新
-                        st.session_state.narration_text = improved_narration
-                        st.success("✅ 改善版ナレーション生成完了！")
-                        st.rerun()
-
-                except Exception as e:
-                    st.error(f"❌ エラー: {e}")
-                    st.exception(e)
-
-        with col2:
-            if st.button("🔄 別のバージョンを生成", type="secondary", use_container_width=True):
-                st.rerun()
 
         st.markdown("---")
 
