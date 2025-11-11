@@ -244,9 +244,12 @@ def main():
         if enable_narration:
             narration_text = st.text_area(
                 "ナレーションテキスト",
-                height=150,
-                max_chars=200,
-                placeholder="ナレーションを入力してください（70文字程度推奨）\n画像枚数に応じて自動的に分割されます。",
+                height=220,
+                max_chars=2000,
+                placeholder=(
+                    "1500字程度まで貼り付け可。画像枚数に応じて自動分割されます。\n"
+                    "最後の一文は書影とタイトルの案内にすると締めやすいです。"
+                ),
                 help="入力したテキストは画像枚数に応じて自動分割されます"
             )
 
